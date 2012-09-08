@@ -43,6 +43,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.cassandra.concurrent.Stage;
 import org.apache.cassandra.concurrent.StageManager;
 import org.apache.cassandra.config.DatabaseDescriptor;
+import org.apache.cassandra.config.ExternalCacheManager;
 import org.apache.cassandra.config.Schema;
 import org.apache.cassandra.db.*;
 import org.apache.cassandra.dht.AbstractBounds;
@@ -434,6 +435,7 @@ public class StorageProxy implements StorageProxyMBean
                         logger.debug("Adding FWD message to: " + destination + " with ID " + id);
                 }
                 message = message.withHeaderAdded(RowMutation.FORWARD_HEADER, bos.toByteArray());
+                message = message.withHeaderAdded(RowMutation.REASON_HEADER, RowMutation.REASON_DC);
                 // send the combined message + forward headers
                 String id = MessagingService.instance().sendRR(message, target, handler);
                 if (logger.isDebugEnabled())
@@ -450,8 +452,13 @@ public class StorageProxy implements StorageProxyMBean
         {
             public void runMayThrow() throws IOException
             {
-                rm.apply();
                 responseHandler.response(null);
+                if ( ExternalCacheManager.getExternalCacheEventDetails().notifyOnLocalMutation() ) {
+                	rm.notifyCacheEventListeners().apply();
+                }
+                else {
+                	rm.apply();
+                }
             }
         };
         StageManager.getStage(Stage.MUTATION).execute(runnable);

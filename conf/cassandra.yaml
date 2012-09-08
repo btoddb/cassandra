@@ -565,3 +565,12 @@ encryption_options:
     # algorithm: SunX509
     # store_type: JKS
     # cipher_suites: [TLS_RSA_WITH_AES_128_CBC_SHA,TLS_RSA_WITH_AES_256_CBC_SHA]
+
+#external_cache_notification:
+#  listener_class: org.apache.cassandra.notify.EhcacheCacheEventListenerImpl
+#  notify_on_local_mutate: true
+#  notify_on_replica_mutate: true
+#  notify_on_dc_mutate: true
+#  notify_on_repairs: true
+#  notify_on_hints: true
+

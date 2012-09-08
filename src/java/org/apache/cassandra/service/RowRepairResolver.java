@@ -133,6 +133,7 @@ public class RowRepairResolver extends AbstractRowResolver
             {
                 throw new IOError(e);
             }
+            repairMessage = repairMessage.withHeaderAdded(RowMutation.REASON_HEADER, RowMutation.REASON_RR);
             results.add(MessagingService.instance().sendRR(repairMessage, endpoints.get(i)));
         }
 

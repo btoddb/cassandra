@@ -25,6 +25,7 @@ import java.net.Socket;
 import java.util.Collections;
 
 import org.apache.cassandra.config.DatabaseDescriptor;
+import org.apache.cassandra.config.ExternalCacheManager;
 import org.apache.cassandra.db.ColumnFamily;
 import org.apache.cassandra.db.ColumnFamilyStore;
 import org.apache.cassandra.db.DecoratedKey;
@@ -34,16 +35,17 @@ import org.apache.cassandra.db.compaction.PrecompactedRow;
 import org.apache.cassandra.io.IColumnSerializer;
 import org.apache.cassandra.io.sstable.*;
 import org.apache.cassandra.io.util.FileUtils;
+import org.apache.cassandra.notify.ExternalCacheEventListener;
+import org.apache.cassandra.notify.MutationEvent;
 import org.apache.cassandra.service.StorageService;
 import org.apache.cassandra.utils.ByteBufferUtil;
 import org.apache.cassandra.utils.BytesReadTracker;
 import org.apache.cassandra.utils.FBUtilities;
 import org.apache.cassandra.utils.Pair;
-
-import com.ning.compress.lzf.LZFInputStream;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.ning.compress.lzf.LZFInputStream;
 
 public class IncomingStreamReader
 {
@@ -118,13 +120,16 @@ public class IncomingStreamReader
             {
                 long length = section.right - section.left;
                 long bytesRead = 0;
+                boolean notifyExternalCache = ExternalCacheManager.getExternalCacheEventDetails().notifyOnRepair();
+                ExternalCacheEventListener externalCacheListener = ExternalCacheManager.getExternalCacheEventDetails().getListener();
                 while (bytesRead < length)
                 {
                     in.reset(0);
                     key = SSTableReader.decodeKey(StorageService.getPartitioner(), localFile.desc, ByteBufferUtil.readWithShortLength(in));
                     long dataSize = SSTableReader.readRowSize(in, localFile.desc);
 
-                    if (cfs.containsCachedRow(key) && remoteFile.type == OperationType.AES && dataSize <= DatabaseDescriptor.getInMemoryCompactionLimit())
+                    boolean updateCache = cfs.containsCachedRow(key) && remoteFile.type == OperationType.AES && dataSize <= DatabaseDescriptor.getInMemoryCompactionLimit();
+                    if (notifyExternalCache || updateCache)
                     {
                         // need to update row cache
                         // Note: Because we won't just echo the columns, there is no need to use the PRESERVE_SIZE flag, contrarily to what appendFromStream does below
@@ -139,6 +144,17 @@ public class IncomingStreamReader
                         // update cache
                         ColumnFamily cf = row.getFullColumnFamily();
                         cfs.updateRowCache(key, cf);
+                        if ( updateCache) {
+                        	cfs.updateRowCache(key, cf);
+                        }
+                        if ( notifyExternalCache ) {
+                        	try {
+                        		externalCacheListener.mutationNotification(Collections.singletonList(new MutationEvent(localFile.desc.ksname, cfs.getColumnFamilyName(), key, cf)));
+                        	}
+                        	catch ( Throwable e ) {
+                        		logger.error( "exception while notifying external cache listener", e);
+                        	}
+                        }
                     }
                     else
                     {

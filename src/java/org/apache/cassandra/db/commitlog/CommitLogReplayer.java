@@ -33,6 +33,7 @@ import java.util.zip.Checksum;
 
 import org.apache.cassandra.concurrent.Stage;
 import org.apache.cassandra.concurrent.StageManager;
+import org.apache.cassandra.config.ExternalCacheManager;
 import org.apache.cassandra.config.Schema;
 import org.apache.cassandra.db.ColumnFamily;
 import org.apache.cassandra.db.ColumnFamilyStore;
@@ -253,6 +254,9 @@ private final AtomicInteger replayedCount;
                         }
                         if (!newRm.isEmpty())
                         {
+                        	if ( ExternalCacheManager.getExternalCacheEventDetails().notifyOnCommitlogReplay() ) {
+                        		newRm.notifyCacheEventListeners();
+                        	}
                             Table.open(newRm.getTable()).apply(newRm, false);
                             tablesRecovered.add(table);
                         }

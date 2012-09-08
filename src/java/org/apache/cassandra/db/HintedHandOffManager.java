@@ -19,6 +19,7 @@
 package org.apache.cassandra.db;
 
 import java.io.DataInputStream;
+import java.io.IOError;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.net.InetAddress;
@@ -48,6 +49,7 @@ import org.apache.cassandra.dht.Token;
 import org.apache.cassandra.gms.ApplicationState;
 import org.apache.cassandra.gms.FailureDetector;
 import org.apache.cassandra.gms.Gossiper;
+import org.apache.cassandra.net.Message;
 import org.apache.cassandra.net.MessagingService;
 import org.apache.cassandra.service.*;
 import org.apache.cassandra.thrift.*;
@@ -55,6 +57,7 @@ import org.apache.cassandra.utils.ByteBufferUtil;
 import org.apache.cassandra.utils.FBUtilities;
 import org.apache.cassandra.utils.WrappedRunnable;
 import org.cliffc.high_scale_lib.NonBlockingHashSet;
+
 
 
 
@@ -125,7 +128,18 @@ public class HintedHandOffManager implements HintedHandOffManagerMBean
     private static void sendMutation(InetAddress endpoint, RowMutation mutation) throws TimeoutException
     {
         IWriteResponseHandler responseHandler = WriteResponseHandler.create(endpoint);
-        MessagingService.instance().sendRR(mutation, endpoint, responseHandler);
+        Message msg;
+		try
+		{
+			msg = mutation.getMessage(Gossiper.instance.getVersion(endpoint));
+		}
+        catch (IOException ex)
+        {
+            // happened during message creation.
+            throw new IOError(ex);
+        }
+        msg = msg.withHeaderAdded(RowMutation.REASON_HEADER, RowMutation.REASON_HH);
+        MessagingService.instance().sendRR(msg, endpoint, responseHandler);
         responseHandler.get();
 
         try
@@ -311,7 +325,8 @@ public class HintedHandOffManager implements HintedHandOffManagerMBean
         while (true)
         {
             QueryFilter filter = QueryFilter.getSliceFilter(epkey, new QueryPath(HINTS_CF), startColumn, ByteBufferUtil.EMPTY_BYTE_BUFFER, false, pageSize);
-            ColumnFamily hintsPage = ColumnFamilyStore.removeDeleted(hintStore.getColumnFamily(filter), (int)(System.currentTimeMillis() / 1000));
+//            ColumnFamily hintsPage = ColumnFamilyStore.removeDeleted(hintStore.getColumnFamily(filter), (int)(System.currentTimeMillis() / 1000));
+            ColumnFamily hintsPage = hintStore.getColumnFamily(filter);
             if (pagingFinished(hintsPage, startColumn))
                 break;
 

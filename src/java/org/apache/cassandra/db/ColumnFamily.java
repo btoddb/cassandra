@@ -103,6 +103,10 @@ public class ColumnFamily extends AbstractColumnContainer implements IRowCacheEn
         return (s instanceof SuperColumnSerializer) ? ((SuperColumnSerializer) s).getComparator() : null;
     }
 
+    public String getName() {
+    	return cfm.cfName;
+    }
+    
     public ColumnFamilyType getType()
     {
         return cfm.cfType;

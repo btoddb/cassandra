@@ -28,7 +28,9 @@ public class Config
     public String cluster_name = "Test Cluster";
     public String authenticator;
     public String authority;
-
+    
+    public ExternalCacheNotificationDef external_cache_notification = new ExternalCacheNotificationDef(); 
+    
     /* Hashing strategy Random or OPHF */
     public String partitioner;
 

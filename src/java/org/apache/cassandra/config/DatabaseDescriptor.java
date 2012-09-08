@@ -84,7 +84,7 @@ public class DatabaseDescriptor
 
     private static long keyCacheSizeInMB;
     private static IRowCacheProvider rowCacheProvider;
-
+    
     /**
      * Inspect the classpath to find storage configuration file
      */
@@ -143,6 +143,17 @@ public class DatabaseDescriptor
 
             if (!System.getProperty("os.arch").contains("64"))
                 logger.info("32bit JVM detected.  It is recommended to run Cassandra on a 64bit JVM for better performance.");
+
+            ExternalCacheManager.init(
+                               conf.external_cache_notification.listener_class,
+                               conf.external_cache_notification.notify_on_local_mutate,
+                               conf.external_cache_notification.notify_on_replica_mutate,
+                               conf.external_cache_notification.notify_on_dc_mutate,
+                               conf.external_cache_notification.notify_on_repairs,
+                               conf.external_cache_notification.notify_on_hints,
+                               conf.external_cache_notification.notify_on_commitlog_replay
+                               );
+
 
             if (conf.commitlog_sync == null)
             {
@@ -493,7 +504,7 @@ public class DatabaseDescriptor
         IEndpointSnitch snitch = FBUtilities.construct(snitchClassName, "snitch");
         return conf.dynamic_snitch ? new DynamicEndpointSnitch(snitch) : snitch;
     }
-
+    
     /** load keyspace (table) definitions, but do not initialize the table instances. */
     public static void loadSchemas() throws IOException
     {

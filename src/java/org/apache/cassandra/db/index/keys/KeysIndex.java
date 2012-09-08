@@ -98,7 +98,7 @@ public class KeysIndex extends PerColumnSecondaryIndex
         int localDeletionTime = (int) (System.currentTimeMillis() / 1000);
         ColumnFamily cfi = ColumnFamily.create(indexCfs.metadata);
         cfi.addTombstone(rowKey, localDeletionTime, column.timestamp());
-        indexCfs.apply(valueKey, cfi);
+        indexCfs.apply(valueKey, cfi, false);
         if (logger.isDebugEnabled())
             logger.debug("removed index entry for cleaned-up value {}:{}", valueKey, cfi);
     }
@@ -117,8 +117,8 @@ public class KeysIndex extends PerColumnSecondaryIndex
         }
         if (logger.isDebugEnabled())
             logger.debug("applying index row {} in {}", indexCfs.metadata.getKeyValidator().getString(valueKey.key), cfi);
-
-        indexCfs.apply(valueKey, cfi);
+        
+        indexCfs.apply(valueKey, cfi, false);
     }
 
     public void updateColumn(DecoratedKey<?> valueKey, ByteBuffer rowKey, IColumn col)

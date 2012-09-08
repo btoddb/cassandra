@@ -63,6 +63,7 @@ import org.apache.cassandra.io.compress.CompressionParameters;
 import org.apache.cassandra.io.sstable.*;
 import org.apache.cassandra.io.sstable.Descriptor;
 import org.apache.cassandra.io.util.FileUtils;
+import org.apache.cassandra.notify.MutationEvent;
 import org.apache.cassandra.service.CacheService;
 import org.apache.cassandra.service.StorageService;
 import org.apache.cassandra.thrift.IndexExpression;
@@ -143,8 +144,9 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
     volatile double liveRatio = 1.0;
     /** ops count last time we computed liveRatio */
     private final AtomicLong liveRatioComputedAt = new AtomicLong(32);
+   
 
-    public void reload() throws IOException
+	public void reload() throws IOException
     {
         // metadata object has been mutated directly. make all the members jibe with new settings.
 
@@ -759,7 +761,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
      * param @ key - key for update/insert
      * param @ columnFamily - columnFamily changes
      */
-    public void apply(DecoratedKey key, ColumnFamily columnFamily)
+    public void apply(DecoratedKey key, ColumnFamily columnFamily, boolean notifyCacheEventListeners)
     {
         long start = System.nanoTime();
 
@@ -767,6 +769,15 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
         mt.put(key, columnFamily);
         updateRowCache(key, columnFamily);
         writeStats.addNano(System.nanoTime() - start);
+
+        if ( notifyCacheEventListeners && null != ExternalCacheManager.getExternalCacheEventDetails().getListener()) {
+        	try {
+        		ExternalCacheManager.getExternalCacheEventDetails().getListener().mutationNotification(Collections.singletonList(new MutationEvent(metadata.ksName, getColumnFamilyName(), key, columnFamily)));
+        	}
+        	catch ( Throwable e ) {
+        		logger.error( "exception while notifying external cache listener", e);
+        	}
+        }
 
         // recompute liveRatio, if we have doubled the number of ops since last calculated
         while (true)

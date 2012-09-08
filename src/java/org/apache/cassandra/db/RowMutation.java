@@ -48,6 +48,10 @@ public class RowMutation implements IMutation, MessageProducer
 {
     private static RowMutationSerializer serializer_ = new RowMutationSerializer();
     public static final String FORWARD_HEADER = "FORWARD";
+    public static final String REASON_HEADER = "REPAIR_REASON";
+    public static final byte[] REASON_HH = "HH".getBytes(); // done
+    public static final byte[] REASON_RR = "RR".getBytes();
+    public static final byte[] REASON_DC = "DC".getBytes();
 
     public static RowMutationSerializer serializer()
     {
@@ -66,6 +70,25 @@ public class RowMutation implements IMutation, MessageProducer
         table_ = table;
         key_ = key;
     }
+    
+    private boolean notifyCacheEventListeners = false;
+
+	public boolean isNotifyCacheEventListeners()
+	{
+		return notifyCacheEventListeners;
+	}
+
+	public RowMutation notifyCacheEventListeners()
+	{
+		this.notifyCacheEventListeners = true;
+		return this;
+	}
+
+	public RowMutation skipCacheEventListeners()
+	{
+		this.notifyCacheEventListeners = false;
+		return this;
+	}
 
     public RowMutation(String table, Row row)
     {
@@ -462,4 +485,21 @@ public class RowMutation implements IMutation, MessageProducer
             return size;
         }
     }
+
+	public static boolean isReasonReplicaMutation(byte[] reason)
+	{
+		return null == reason;
+	}
+	
+	public static boolean isReasonHintedHandoff(byte[] reason) {
+		return isReasonReplicaMutation(reason) ? false : Arrays.equals(REASON_HH, reason);
+	}
+	
+//	public static boolean isReasonReadRepair(byte[] reason) {
+//		return isReasonReplicaMutation(reason) ? false : Arrays.equals(REASON_RR, reason);
+//	}
+	
+	public static boolean isReasonDataCenterReplica(byte[] reason) {
+		return isReasonReplicaMutation(reason) ? false : Arrays.equals(REASON_DC, reason);
+	}
 }

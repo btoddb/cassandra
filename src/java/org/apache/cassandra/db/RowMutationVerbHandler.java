@@ -25,6 +25,7 @@ import java.net.InetAddress;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.cassandra.config.ExternalCacheManager;
 import org.apache.cassandra.io.util.FastByteArrayInputStream;
 import org.apache.cassandra.net.CompactEndpointSerializationHelper;
 import org.apache.cassandra.net.IVerbHandler;
@@ -48,7 +49,27 @@ public class RowMutationVerbHandler implements IVerbHandler
             if (forwardBytes != null && message.getVersion() >= MessagingService.VERSION_11)
                 forwardToLocalNodes(message, forwardBytes);
 
-            rm.apply();
+            byte[] mutationReason = message.getHeader(RowMutation.REASON_HEADER);
+            
+            if ( ExternalCacheManager.getExternalCacheEventDetails().notifyOnReplicaMutation() && RowMutation.isReasonReplicaMutation(mutationReason) ) {
+            	logger_.debug( "notifying external cache on replica mutate");
+            	rm.notifyCacheEventListeners().apply();
+            }
+            else if ( ExternalCacheManager.getExternalCacheEventDetails().notifyOnDcMutation() && RowMutation.isReasonDataCenterReplica(mutationReason) ) {
+            	logger_.debug( "notifying external cache on 'other' data center mutate");
+            	rm.notifyCacheEventListeners().apply();
+            }
+//            else if ( ExternalCacheManager.getExternalCacheEventDetails().notifyOnRepair() && RowMutation.isReasonReadRepair(mutationReason) ) {
+//        	logger_.debug( "notifying external cache on read repair");
+//            	rm.notifyCacheEventListeners().apply();
+//            }
+            else if ( ExternalCacheManager.getExternalCacheEventDetails().notifyOnHint() && RowMutation.isReasonHintedHandoff(mutationReason) ) {
+            	logger_.debug( "notifying external cache on hinted handoff");
+            	rm.notifyCacheEventListeners().apply();
+            }
+            else {
+            	rm.apply();
+            }
 
             WriteResponse response = new WriteResponse(rm.getTable(), rm.key(), true);
             Message responseMessage = WriteResponse.makeWriteResponseMessage(message, response);

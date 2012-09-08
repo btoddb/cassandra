@@ -22,13 +22,17 @@ import java.io.DataInputStream;
 import java.io.IOError;
 import java.io.IOException;
 
+import org.apache.cassandra.config.ExternalCacheManager;
 import org.apache.cassandra.io.util.FastByteArrayInputStream;
 import org.apache.cassandra.net.IVerbHandler;
 import org.apache.cassandra.net.Message;
 import org.apache.cassandra.net.MessagingService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ReadRepairVerbHandler implements IVerbHandler
 {
+    private static Logger logger_ = LoggerFactory.getLogger(ReadRepairVerbHandler.class);
     public void doVerb(Message message, String id)
     {
         byte[] body = message.getMessageBody();
@@ -37,8 +41,13 @@ public class ReadRepairVerbHandler implements IVerbHandler
         try
         {
             RowMutation rm = RowMutation.serializer().deserialize(new DataInputStream(buffer), message.getVersion());
-            rm.apply();
-
+            if ( ExternalCacheManager.getExternalCacheEventDetails().notifyOnRepair() ) {
+            	logger_.debug( "notifying external cache on read repair");
+            	rm.notifyCacheEventListeners().apply();
+            }
+            else {
+            	rm.apply();
+            }
             WriteResponse response = new WriteResponse(rm.getTable(), rm.key(), true);
             Message responseMessage = WriteResponse.makeWriteResponseMessage(message, response);
             MessagingService.instance().sendReply(responseMessage, id, message.getFrom());

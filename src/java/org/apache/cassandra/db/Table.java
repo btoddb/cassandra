@@ -439,7 +439,7 @@ public class Table
                 // no-index case to avoid the synchronization.
                 if (mutatedIndexedColumns == null)
                 {
-                    cfs.apply(key, cf);
+                    cfs.apply(key, cf, mutation.isNotifyCacheEventListeners());
                     continue;
                 }
                 // else mutatedIndexedColumns != null
@@ -453,7 +453,7 @@ public class Table
                     logger.debug("Pre-mutation index row is {}", oldIndexedColumns);
                     ignoreObsoleteMutations(cf, mutatedIndexedColumns, oldIndexedColumns);
 
-                    cfs.apply(key, cf);
+                    cfs.apply(key, cf, mutation.isNotifyCacheEventListeners());
 
                     // ignore full index memtables -- we flush those when the "master" one is full
                     cfs.indexManager.applyIndexUpdates(mutation.key(), cf, mutatedIndexedColumns, oldIndexedColumns);

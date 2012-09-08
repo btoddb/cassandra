@@ -34,3 +34,11 @@ encryption_options:
 incremental_backups: true
 flush_largest_memtables_at: 1.0
 compaction_throughput_mb_per_sec: 0
+
+external_cache_notification:
+  listener_class: org.apache.cassandra.notify.EhcacheCacheEventListenerImpl
+  notify_on_local_mutate: true
+  notify_on_replica_mutate: true
+  notify_on_dc_mutate: true
+  notify_on_repairs: true
+  notify_on_hints: true

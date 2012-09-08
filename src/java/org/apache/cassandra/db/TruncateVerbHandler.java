@@ -56,6 +56,8 @@ public class TruncateVerbHandler implements IVerbHandler
             }
             logger.debug("Truncate operation succeeded at this host");
 
+        	// TODO:BTB - somewhere in here need to completely delete the external cache contents
+
             TruncateResponse response = new TruncateResponse(t.keyspace, t.columnFamily, true);
             Message responseMessage = TruncateResponse.makeTruncateResponseMessage(message, response);
             logger.debug("{} applied.  Sending response to {}@{} ", new Object[]{ t, id, message.getFrom()});
